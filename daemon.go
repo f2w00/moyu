@@ -59,15 +59,34 @@ func saveResults(db *sql.DB, t time.Time, devices []device) error {
 	return tx.Commit()
 }
 
+func cleanupOldData(db *sql.DB) {
+	sixMonthsAgo := time.Now().AddDate(0, -6, 0).Format("2006-01-02")
+	result, err := db.Exec("DELETE FROM daily WHERE date < ?", sixMonthsAgo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "清理旧数据失败: %v\n", err)
+		return
+	}
+	if n, _ := result.RowsAffected(); n > 0 {
+		fmt.Printf("清理了 %d 条半年前的数据\n", n)
+	}
+}
+
 func runDaemon(client *arp.Client, localIP netip.Addr, targets []netip.Addr, db *sql.DB, state *ScannerState) {
 	fmt.Println("ARP 守护模式启动")
 	fmt.Println("扫描间隔: 5 分钟")
 	fmt.Println("记录时段: 06:00 ~ 24:00")
 	fmt.Println()
 
+	var lastCleanup time.Time
+
 	for {
 		now := time.Now()
 		inWindow := now.Hour() >= 6 && now.Hour() < 24
+
+		if time.Since(lastCleanup) > 24*time.Hour {
+			cleanupOldData(db)
+			lastCleanup = time.Now()
+		}
 
 		hosts := makeHosts(targets)
 		results := scan(client, localIP, hosts)
