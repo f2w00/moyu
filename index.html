@@ -3,80 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>工时监测</title>
+<title>摸鱼雷达</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 960px; margin: 0 auto; padding: 20px; color: #222; font-size: 14px; }
-h1 { font-size: 18px; margin-bottom: 12px; }
-.stats { display: flex; gap: 24px; margin-bottom: 16px; color: #666; font-size: 13px; }
-.stats strong { color: #222; }
-.btns { display: flex; gap: 8px; margin-bottom: 16px; }
-.btns button { padding: 7px 18px; border: 1px solid #d0d0d0; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; color: #555; }
-.btns button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-thead { border-bottom: 2px solid #eee; }
-th, td { padding: 10px 8px; text-align: left; }
-th { font-weight: 500; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-tbody tr:hover { background: #f8f9ff; }
-tbody tr { border-bottom: 1px solid #f0f0f0; }
-.online-dot { color: #22c55e; font-size: 14px; }
-.unreg { color: #aaa; }
-.empty { color: #999; text-align: center; padding: 40px 0; }
-.mgmt { margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px; }
-.mgmt-toggle { border: none; background: none; cursor: pointer; font-size: 13px; color: #666; padding: 4px 0; }
-.mgmt-toggle:hover { color: #1a73e8; }
-.mgmt-body { display: none; margin-top: 12px; }
-.mgmt-body.open { display: block; }
-.mgmt-form { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.mgmt-form input { padding: 6px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; width: 160px; }
-.mgmt-form button { padding: 6px 14px; border: 1px solid #1a73e8; border-radius: 4px; background: #1a73e8; color: #fff; cursor: pointer; font-size: 13px; }
-.mgmt-item { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
-.mgmt-item .name { min-width: 80px; }
-.mgmt-item .mac { color: #888; font-family: monospace; flex: 1; }
-.mgmt-item .del { color: #e33; cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 3px; }
-.mgmt-item .del:hover { background: #fee; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fef8f0 0%, #f5f0ff 50%, #f0faf8 100%);
+  padding: 36px 24px;
+  color: #1e293b;
+  font-size: 14px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.06);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+.card:last-child { margin-bottom: 0; }
+
+.header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px 28px; }
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-icon { font-size: 28px; line-height: 1; }
+.header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #f97316, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.header-date { font-size: 13px; color: #94a3b8; background: #f8fafc; padding: 5px 12px; border-radius: 8px; }
+.header-mgmt-btn {
+  border: none; background: #f8fafc; cursor: pointer; font-size: 13px; font-weight: 600; line-height: 1;
+  padding: 7px 14px; border-radius: 8px; transition: all .2s; color: #64748b; white-space: nowrap;
+}
+.header-mgmt-btn:hover { background: #f97316; color: #fff; }
+
+.stats { display: flex; gap: 20px; flex-wrap: wrap; padding: 16px 28px; }
+.stat-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; }
+.stat-item .stat-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.stat-item .stat-dot.orange { background: #f97316; }
+.stat-item .stat-dot.green { background: #22c55e; }
+.stat-item .stat-dot.violet { background: #8b5cf6; }
+.stat-item strong { color: #1e293b; font-size: 16px; }
+
+.btns { display: flex; gap: 10px; padding: 0 28px 20px; }
+.btns button {
+  padding: 9px 22px; border: 2px solid transparent; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600;
+  background: #f1f5f9; color: #64748b; transition: all .2s ease;
+}
+.btns button:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.btns button.active { background: linear-gradient(135deg, #f97316, #fb923c); color: #fff; border-color: #f97316; box-shadow: 0 2px 10px rgba(249,115,22,.25); }
+.btns button.active:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(249,115,22,.35); }
+
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+thead th {
+  padding: 12px 10px; text-align: left; font-weight: 600; font-size: 12px; color: #64748b; letter-spacing: .5px;
+  border-bottom: 2px solid #f1f5f9; position: sticky; top: 0; background: #fff;
+}
+tbody td { padding: 12px 10px; border-bottom: 1px solid #f8fafc; }
+tbody tr { transition: background .15s ease; }
+tbody tr:hover { background: #fef8f4; }
+tbody tr:last-child td { border-bottom: none; }
+.online-dot { color: #22c55e; font-size: 14px; filter: drop-shadow(0 0 3px rgba(34,197,94,.4)); }
+.unreg { color: #94a3b8; font-style: italic; }
+.mac-link { cursor: pointer; transition: color .15s; }
+.mac-link:hover { color: #f97316; }
+.empty { color: #94a3b8; text-align: center; padding: 48px 0; font-size: 14px; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+  background: #fff; border-radius: 16px; width: 480px; max-width: 90vw; max-height: 80vh;
+  box-shadow: 0 8px 40px rgba(0,0,0,.15); display: flex; flex-direction: column;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 0; font-size: 15px; font-weight: 700; color: #1e293b;
+}
+.modal-close {
+  border: none; background: #f1f5f9; cursor: pointer; font-size: 14px; line-height: 1;
+  width: 30px; height: 30px; border-radius: 8px; color: #94a3b8; transition: all .15s;
+}
+.modal-close:hover { background: #f97316; color: #fff; }
+.modal-body { padding: 20px 24px 24px; overflow-y: auto; }
+.mgmt-form { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.mgmt-form input {
+  padding: 8px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 13px; width: 170px; outline: none; transition: border-color .2s;
+}
+.mgmt-form input:focus { border-color: #f97316; }
+.mgmt-form button {
+  padding: 8px 20px; border: none; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600;
+  background: linear-gradient(135deg, #f97316, #fb923c); color: #fff; transition: all .2s;
+}
+.mgmt-form button:hover { transform: translateY(-1px); box-shadow: 0 2px 10px rgba(249,115,22,.3); }
+.mgmt-list { display: flex; flex-direction: column; gap: 4px; }
+.mgmt-item {
+  display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; transition: background .15s;
+}
+.mgmt-item:hover { background: #fef8f4; }
+.mgmt-item .name { min-width: 80px; font-weight: 500; }
+.mgmt-item .mac { color: #94a3b8; font-family: monospace; flex: 1; }
+.mgmt-item .del {
+  color: #ef4444; cursor: pointer; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .15s; font-weight: 600;
+}
+.mgmt-item .del:hover { background: #fef2f2; }
 </style>
 </head>
 <body>
-<h1>工时监测</h1>
-<div class="stats">
-  <span>今日轮数: <strong id="slots">-</strong></span>
-  <span>当前在线: <strong id="online">-</strong> 台</span>
-</div>
-<div class="btns">
-  <button id="btnDaily" class="active">今日详情</button>
-  <button id="btnMonthly">月度报告</button>
+<div class="container">
+
+<div class="card header">
+  <div class="header-left">
+    <span class="header-icon">📡</span>
+    <h1>摸鱼雷达</h1>
+  </div>
+  <span class="header-right">
+    <span class="header-date" id="todayDate"></span>
+    <button class="header-mgmt-btn" id="mgmtToggle">⚙️ 管理</button>
+  </span>
 </div>
 
-<div id="dailyView">
-  <table>
-    <thead><tr><th style="width:24px"></th><th>姓名</th><th>MAC 地址</th><th>在线次数</th><th>在线时长</th></tr></thead>
-    <tbody id="dailyBody"></tbody>
-  </table>
+<div class="card">
+  <div class="stats">
+    <span class="stat-item"><span class="stat-dot orange"></span>今日轮数: <strong id="slots">-</strong></span>
+    <span class="stat-item"><span class="stat-dot green"></span>当前在线: <strong id="onlineCnt">-</strong> 台</span>
+  </div>
+  <div class="btns">
+    <button id="btnDaily" class="active">📋 今日详情</button>
+    <button id="btnMonthly">📊 月度报告</button>
+  </div>
+
+  <div id="dailyView">
+    <table>
+      <thead><tr><th style="width:24px"></th><th>姓名</th><th>MAC 地址</th><th>在线时长</th></tr></thead>
+      <tbody id="dailyBody"></tbody>
+    </table>
+  </div>
+
+  <div id="monthlyView" style="display:none">
+    <table>
+      <thead><tr><th>姓名</th><th>MAC 地址</th><th>在线天数</th><th>总时长</th></tr></thead>
+      <tbody id="monthlyBody"></tbody>
+    </table>
+  </div>
+
 </div>
 
-<div id="monthlyView" style="display:none">
-  <table>
-    <thead><tr><th>姓名</th><th>MAC 地址</th><th>在线天数</th><th>总时长</th></tr></thead>
-    <tbody id="monthlyBody"></tbody>
-  </table>
 </div>
 
-<div class="mgmt">
-  <button class="mgmt-toggle" id="mgmtToggle">+ 管理用户</button>
-  <div class="mgmt-body" id="mgmtBody">
-    <div class="mgmt-form">
-      <input id="inputName" placeholder="姓名">
-      <input id="inputMac" placeholder="MAC 地址 (如 aa:bb:cc:dd:ee:ff)">
-      <button id="btnRegister">注册</button>
+<div class="modal-overlay" id="mgmtModal" style="display:none">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>⚙️ 管理用户</span>
+      <button class="modal-close" id="modalClose">✕</button>
     </div>
-    <div id="mgmtList"></div>
+    <div class="modal-body">
+      <div class="mgmt-form">
+        <input id="inputName" placeholder="姓名">
+        <input id="inputMac" placeholder="MAC 地址 (如 aa:bb:cc:dd:ee:ff)">
+        <button id="btnRegister">注册</button>
+      </div>
+      <div class="mgmt-list" id="mgmtList"></div>
+    </div>
   </div>
 </div>
 
 <script>
 let onlineSet = new Set()
 let monthlyLoaded = false
+
+document.getElementById('todayDate').textContent = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 
 function fmtHours(h) {
   const t = Math.round(h * 60)
@@ -89,7 +186,7 @@ async function refresh() {
   const r = await fetch('/api/status')
   const d = await r.json()
   document.getElementById('slots').textContent = d.slots
-  document.getElementById('online').textContent = (d.online || []).length
+  document.getElementById('onlineCnt').textContent = (d.online || []).length
   onlineSet = new Set(d.online || [])
 }
 
@@ -97,22 +194,31 @@ async function loadDaily() {
   const date = new Date().toISOString().slice(0, 10)
   const r = await fetch('/api/daily?date=' + date)
   const d = await r.json()
+  const devices = (d.devices || []).sort((a, b) => {
+    if (a.name && !b.name) return -1
+    if (!a.name && b.name) return 1
+    return (b.hours || 0) - (a.hours || 0)
+  })
   const tbody = document.getElementById('dailyBody')
   tbody.innerHTML = ''
-  if (!d.devices || d.devices.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无数据</td></tr>'
+  if (!devices.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">🏝️ 今天还没有人上线～</td></tr>'
     return
   }
-  for (const dev of d.devices) {
+  for (const dev of devices) {
     const tr = document.createElement('tr')
     const dot = onlineSet.has(dev.mac) ? '<span class="online-dot">●</span>' : ''
     tr.innerHTML = '<td>' + dot + '</td>' +
       '<td>' + (dev.name || '<span class="unreg">(未注册)</span>') + '</td>' +
-      '<td>' + dev.mac + '</td>' +
-      '<td>' + dev.cnt + '</td>' +
+      '<td class="mac-link" data-mac="' + dev.mac + '">' + dev.mac + '</td>' +
       '<td>' + fmtHours(dev.hours) + '</td>'
     tbody.appendChild(tr)
   }
+  document.querySelectorAll('#dailyBody .mac-link').forEach(function(el) {
+    el.addEventListener('click', function() {
+      openModal(this.dataset.mac)
+    })
+  })
 }
 
 async function loadMonthly() {
@@ -129,23 +235,28 @@ async function loadMonthly() {
 function renderMonthly() {
   const d = window._monthlyData
   if (!d) return
+  const devices = (d.devices || []).filter(dev => dev.name).sort((a, b) => (b.hours || 0) - (a.hours || 0))
   const tbody = document.getElementById('monthlyBody')
   tbody.innerHTML = ''
-  if (!d.devices || d.devices.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty">暂无数据</td></tr>'
+  if (!devices.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">📭 本月暂无数据</td></tr>'
     return
   }
-  for (const dev of d.devices) {
+  for (const dev of devices) {
     const tr = document.createElement('tr')
-    tr.innerHTML = '<td>' + (dev.name || '<span class="unreg">(未注册)</span>') + '</td>' +
-      '<td>' + dev.mac + '</td>' +
+    tr.innerHTML = '<td>' + dev.name + '</td>' +
+      '<td class="mac-link" data-mac="' + dev.mac + '">' + dev.mac + '</td>' +
       '<td>' + dev.days + '</td>' +
       '<td>' + fmtHours(dev.hours) + '</td>'
     tbody.appendChild(tr)
   }
+  document.querySelectorAll('#monthlyBody .mac-link').forEach(function(el) {
+    el.addEventListener('click', function() {
+      openModal(this.dataset.mac)
+    })
+  })
 }
 
-// View switching
 document.getElementById('btnDaily').addEventListener('click', function() {
   this.classList.add('active')
   document.getElementById('btnMonthly').classList.remove('active')
@@ -160,12 +271,21 @@ document.getElementById('btnMonthly').addEventListener('click', function() {
   loadMonthly()
 })
 
-// Management toggle
-document.getElementById('mgmtToggle').addEventListener('click', function() {
-  const body = document.getElementById('mgmtBody')
-  body.classList.toggle('open')
-  this.textContent = body.classList.contains('open') ? '− 收起' : '+ 管理用户'
-  if (body.classList.contains('open')) loadAliases()
+function openModal(mac) {
+  document.getElementById('mgmtModal').style.display = 'flex'
+  document.getElementById('inputMac').value = mac || ''
+  document.getElementById('inputName').focus()
+  loadAliases()
+}
+function closeModal() {
+  document.getElementById('mgmtModal').style.display = 'none'
+  document.getElementById('inputName').value = ''
+  document.getElementById('inputMac').value = ''
+}
+document.getElementById('mgmtToggle').addEventListener('click', function() { openModal() })
+document.getElementById('modalClose').addEventListener('click', closeModal)
+document.getElementById('mgmtModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal()
 })
 
 async function loadAliases() {
@@ -176,7 +296,7 @@ async function loadAliases() {
   for (const a of data) {
     const div = document.createElement('div')
     div.className = 'mgmt-item'
-    div.innerHTML = '<span class="name">' + esc(a.name) + '</span><span class="mac">' + esc(a.mac) + '</span><span class="del" data-mac="' + esc(a.mac) + '">删除</span>'
+    div.innerHTML = '<span class="name">' + esc(a.name) + '</span><span class="mac">' + esc(a.mac) + '</span><span class="del" data-mac="' + esc(a.mac) + '">✕ 删除</span>'
     list.appendChild(div)
   }
   document.querySelectorAll('.del').forEach(function(el) {
