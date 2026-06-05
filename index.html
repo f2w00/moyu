@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工时监测</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 960px; margin: 0 auto; padding: 20px; color: #222; font-size: 14px; }
+h1 { font-size: 18px; margin-bottom: 12px; }
+.stats { display: flex; gap: 24px; margin-bottom: 16px; color: #666; font-size: 13px; }
+.stats strong { color: #222; }
+.btns { display: flex; gap: 8px; margin-bottom: 16px; }
+.btns button { padding: 7px 18px; border: 1px solid #d0d0d0; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; color: #555; }
+.btns button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead { border-bottom: 2px solid #eee; }
+th, td { padding: 10px 8px; text-align: left; }
+th { font-weight: 500; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+tbody tr:hover { background: #f8f9ff; }
+tbody tr { border-bottom: 1px solid #f0f0f0; }
+.online-dot { color: #22c55e; font-size: 14px; }
+.unreg { color: #aaa; }
+.empty { color: #999; text-align: center; padding: 40px 0; }
+.mgmt { margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px; }
+.mgmt-toggle { border: none; background: none; cursor: pointer; font-size: 13px; color: #666; padding: 4px 0; }
+.mgmt-toggle:hover { color: #1a73e8; }
+.mgmt-body { display: none; margin-top: 12px; }
+.mgmt-body.open { display: block; }
+.mgmt-form { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.mgmt-form input { padding: 6px 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 13px; width: 160px; }
+.mgmt-form button { padding: 6px 14px; border: 1px solid #1a73e8; border-radius: 4px; background: #1a73e8; color: #fff; cursor: pointer; font-size: 13px; }
+.mgmt-item { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+.mgmt-item .name { min-width: 80px; }
+.mgmt-item .mac { color: #888; font-family: monospace; flex: 1; }
+.mgmt-item .del { color: #e33; cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 3px; }
+.mgmt-item .del:hover { background: #fee; }
+</style>
+</head>
+<body>
+<h1>工时监测</h1>
+<div class="stats">
+  <span>今日轮数: <strong id="slots">-</strong></span>
+  <span>当前在线: <strong id="online">-</strong> 台</span>
+</div>
+<div class="btns">
+  <button id="btnDaily" class="active">今日详情</button>
+  <button id="btnMonthly">月度报告</button>
+</div>
+
+<div id="dailyView">
+  <table>
+    <thead><tr><th style="width:24px"></th><th>姓名</th><th>MAC 地址</th><th>在线次数</th><th>在线时长</th></tr></thead>
+    <tbody id="dailyBody"></tbody>
+  </table>
+</div>
+
+<div id="monthlyView" style="display:none">
+  <table>
+    <thead><tr><th>姓名</th><th>MAC 地址</th><th>在线天数</th><th>总时长</th></tr></thead>
+    <tbody id="monthlyBody"></tbody>
+  </table>
+</div>
+
+<div class="mgmt">
+  <button class="mgmt-toggle" id="mgmtToggle">+ 管理用户</button>
+  <div class="mgmt-body" id="mgmtBody">
+    <div class="mgmt-form">
+      <input id="inputName" placeholder="姓名">
+      <input id="inputMac" placeholder="MAC 地址 (如 aa:bb:cc:dd:ee:ff)">
+      <button id="btnRegister">注册</button>
+    </div>
+    <div id="mgmtList"></div>
+  </div>
+</div>
+
+<script>
+let onlineSet = new Set()
+let monthlyLoaded = false
+
+function fmtHours(h) {
+  const t = Math.round(h * 60)
+  const hh = Math.floor(t / 60)
+  const mm = t % 60
+  return hh + 'h' + (mm ? mm + 'm' : '')
+}
+
+async function refresh() {
+  const r = await fetch('/api/status')
+  const d = await r.json()
+  document.getElementById('slots').textContent = d.slots
+  document.getElementById('online').textContent = (d.online || []).length
+  onlineSet = new Set(d.online || [])
+}
+
+async function loadDaily() {
+  const date = new Date().toISOString().slice(0, 10)
+  const r = await fetch('/api/daily?date=' + date)
+  const d = await r.json()
+  const tbody = document.getElementById('dailyBody')
+  tbody.innerHTML = ''
+  if (!d.devices || d.devices.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无数据</td></tr>'
+    return
+  }
+  for (const dev of d.devices) {
+    const tr = document.createElement('tr')
+    const dot = onlineSet.has(dev.mac) ? '<span class="online-dot">●</span>' : ''
+    tr.innerHTML = '<td>' + dot + '</td>' +
+      '<td>' + (dev.name || '<span class="unreg">(未注册)</span>') + '</td>' +
+      '<td>' + dev.mac + '</td>' +
+      '<td>' + dev.cnt + '</td>' +
+      '<td>' + fmtHours(dev.hours) + '</td>'
+    tbody.appendChild(tr)
+  }
+}
+
+async function loadMonthly() {
+  if (monthlyLoaded) { renderMonthly(); return }
+  const now = new Date()
+  const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+  const r = await fetch('/api/monthly?ym=' + ym)
+  const d = await r.json()
+  monthlyLoaded = true
+  window._monthlyData = d
+  renderMonthly()
+}
+
+function renderMonthly() {
+  const d = window._monthlyData
+  if (!d) return
+  const tbody = document.getElementById('monthlyBody')
+  tbody.innerHTML = ''
+  if (!d.devices || d.devices.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">暂无数据</td></tr>'
+    return
+  }
+  for (const dev of d.devices) {
+    const tr = document.createElement('tr')
+    tr.innerHTML = '<td>' + (dev.name || '<span class="unreg">(未注册)</span>') + '</td>' +
+      '<td>' + dev.mac + '</td>' +
+      '<td>' + dev.days + '</td>' +
+      '<td>' + fmtHours(dev.hours) + '</td>'
+    tbody.appendChild(tr)
+  }
+}
+
+// View switching
+document.getElementById('btnDaily').addEventListener('click', function() {
+  this.classList.add('active')
+  document.getElementById('btnMonthly').classList.remove('active')
+  document.getElementById('dailyView').style.display = ''
+  document.getElementById('monthlyView').style.display = 'none'
+})
+document.getElementById('btnMonthly').addEventListener('click', function() {
+  this.classList.add('active')
+  document.getElementById('btnDaily').classList.remove('active')
+  document.getElementById('monthlyView').style.display = ''
+  document.getElementById('dailyView').style.display = 'none'
+  loadMonthly()
+})
+
+// Management toggle
+document.getElementById('mgmtToggle').addEventListener('click', function() {
+  const body = document.getElementById('mgmtBody')
+  body.classList.toggle('open')
+  this.textContent = body.classList.contains('open') ? '− 收起' : '+ 管理用户'
+  if (body.classList.contains('open')) loadAliases()
+})
+
+async function loadAliases() {
+  const r = await fetch('/api/aliases')
+  const data = await r.json()
+  const list = document.getElementById('mgmtList')
+  list.innerHTML = ''
+  for (const a of data) {
+    const div = document.createElement('div')
+    div.className = 'mgmt-item'
+    div.innerHTML = '<span class="name">' + esc(a.name) + '</span><span class="mac">' + esc(a.mac) + '</span><span class="del" data-mac="' + esc(a.mac) + '">删除</span>'
+    list.appendChild(div)
+  }
+  document.querySelectorAll('.del').forEach(function(el) {
+    el.addEventListener('click', async function() {
+      await fetch('/api/aliases?mac=' + encodeURIComponent(this.dataset.mac), { method: 'DELETE' })
+      loadAliases()
+      loadDaily()
+    })
+  })
+}
+
+document.getElementById('btnRegister').addEventListener('click', async function() {
+  const name = document.getElementById('inputName').value.trim()
+  const mac = document.getElementById('inputMac').value.trim()
+  if (!name || !mac) return
+  await fetch('/api/aliases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, mac })
+  })
+  document.getElementById('inputName').value = ''
+  document.getElementById('inputMac').value = ''
+  loadAliases()
+  loadDaily()
+})
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+async function tick() {
+  await refresh()
+  loadDaily()
+}
+tick()
+setInterval(tick, 10000)
+</script>
+</body>
+</html>

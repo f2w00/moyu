@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"math"
 	"net"
@@ -38,6 +39,9 @@ type arpHost struct {
 }
 
 func main() {
+	once := flag.Bool("once", false, "单次扫描（不写入数据库）")
+	flag.Parse()
+
 	if os.Geteuid() != 0 {
 		fmt.Fprintln(os.Stderr, "需要 root 权限运行")
 		os.Exit(1)
@@ -51,15 +55,7 @@ func main() {
 
 	localIP := ipnet.IP.To4()
 	localAddr, _ := netip.AddrFromSlice(localIP)
-
-	fmt.Printf("接口: %s (%s)\n", iface.Name, iface.HardwareAddr)
-	fmt.Printf("IP:   %s\n", localAddr)
-	fmt.Printf("掩码: %s\n\n", ipnet.Mask)
-
 	targets := generateTargets(ipnet)
-	fmt.Printf("扫描 %d 个目标 (最多重试 %d 次)\n\n", len(targets), maxRetries)
-
-	start := time.Now()
 
 	client, err := arp.Dial(iface)
 	if err != nil {
@@ -68,14 +64,29 @@ func main() {
 	}
 	defer client.Close()
 
-	hosts := make([]*arpHost, len(targets))
-	for i, ip := range targets {
-		hosts[i] = &arpHost{ip: ip, nextSend: time.Now()}
+	if *once {
+		fmt.Printf("接口: %s (%s)\n", iface.Name, iface.HardwareAddr)
+		fmt.Printf("IP:   %s\n", localAddr)
+		fmt.Printf("掩码: %s\n\n", ipnet.Mask)
+		fmt.Printf("扫描 %d 个目标 (最多重试 %d 次)\n\n", len(targets), maxRetries)
+
+		start := time.Now()
+		results := scan(client, localAddr, makeHosts(targets))
+		printResults(results, time.Since(start))
+		return
 	}
 
-	results := scan(client, localAddr, hosts)
+	db, err := initDB("arpscan.db")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "数据库初始化失败: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
 
-	printResults(results, time.Since(start))
+	state := &ScannerState{}
+
+	go startServer(db, state)
+	runDaemon(client, localAddr, targets, db, state)
 }
 
 func resolveInterface() (*net.Interface, *net.IPNet, error) {
@@ -160,7 +171,6 @@ func scan(client *arp.Client, localIP netip.Addr, hosts []*arpHost) []device {
 	for active > 0 && time.Now().Before(deadline) {
 		now := time.Now()
 
-		// send requests for all ready hosts
 		for _, h := range hosts {
 			if h == nil || !now.After(h.nextSend) {
 				continue
@@ -170,11 +180,10 @@ func scan(client *arp.Client, localIP netip.Addr, hosts []*arpHost) []device {
 			h.attempts++
 			timeout := float64(initialTimeout) * math.Pow(backoff, float64(h.attempts-1))
 			h.deadline = h.sentAt.Add(time.Duration(timeout))
-			h.nextSend = time.Time{} // clear, we're now waiting
+			h.nextSend = time.Time{}
 			time.Sleep(packetInterval)
 		}
 
-		// find next event: earliest deadline or nextSend across all hosts
 		nextEvent := deadline
 		for _, h := range hosts {
 			if h == nil {
@@ -198,7 +207,6 @@ func scan(client *arp.Client, localIP netip.Addr, hosts []*arpHost) []device {
 			}
 		}
 
-		// read replies until next event (but at least 50ms to drain buffer)
 		if !nextEvent.After(time.Now()) {
 			nextEvent = time.Now().Add(50 * time.Millisecond)
 		}
@@ -227,7 +235,6 @@ func scan(client *arp.Client, localIP netip.Addr, hosts []*arpHost) []device {
 			}
 		}
 
-		// handle timeouts: retry or give up
 		now = time.Now()
 		for i, h := range hosts {
 			if h == nil {
@@ -237,7 +244,6 @@ func scan(client *arp.Client, localIP netip.Addr, hosts []*arpHost) []device {
 				continue
 			}
 			if h.attempts < maxRetries {
-				// schedule retry immediately
 				h.nextSend = now
 			} else {
 				hosts[i] = nil
