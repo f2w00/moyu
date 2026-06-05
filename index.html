@@ -108,6 +108,13 @@ tbody tr:last-child td { border-bottom: none; }
   color: #ef4444; cursor: pointer; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .15s; font-weight: 600;
 }
 .mgmt-item .del:hover { background: #fef2f2; }
+.month-picker-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 14px; }
+.month-picker-wrap label { color: #64748b; }
+.month-picker {
+  padding: 7px 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-weight: 600;
+  outline: none; color: #1e293b; cursor: pointer; transition: border-color .2s;
+}
+.month-picker:focus { border-color: #f97316; }
 </style>
 </head>
 <body>
@@ -142,6 +149,7 @@ tbody tr:last-child td { border-bottom: none; }
   </div>
 
   <div id="monthlyView" style="display:none">
+    <div class="month-picker-wrap">📅 <label>年:</label> <select id="yearPicker" class="month-picker"></select> <label>月:</label> <select id="monthPicker" class="month-picker"></select></div>
     <table>
       <thead><tr><th>姓名</th><th>MAC 地址</th><th>在线天数</th><th>总时长</th></tr></thead>
       <tbody id="monthlyBody"></tbody>
@@ -171,7 +179,6 @@ tbody tr:last-child td { border-bottom: none; }
 
 <script>
 let onlineSet = new Set()
-let monthlyLoaded = false
 
 document.getElementById('todayDate').textContent = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 
@@ -222,14 +229,36 @@ async function loadDaily() {
 }
 
 async function loadMonthly() {
-  if (monthlyLoaded) { renderMonthly(); return }
-  const now = new Date()
-  const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+  const y = document.getElementById('yearPicker').value
+  const m = document.getElementById('monthPicker').value
+  const ym = y + '-' + m
   const r = await fetch('/api/monthly?ym=' + ym)
   const d = await r.json()
-  monthlyLoaded = true
   window._monthlyData = d
   renderMonthly()
+}
+
+function initMonthPicker() {
+  const now = new Date()
+  const curYear = now.getFullYear()
+  const curMonth = String(now.getMonth() + 1).padStart(2, '0')
+
+  const yearSel = document.getElementById('yearPicker')
+  for (let y = curYear - 1; y <= curYear; y++) {
+    const opt = document.createElement('option')
+    opt.value = y; opt.textContent = y
+    if (y === curYear) opt.selected = true
+    yearSel.appendChild(opt)
+  }
+
+  const monthSel = document.getElementById('monthPicker')
+  for (let m = 1; m <= 12; m++) {
+    const v = String(m).padStart(2, '0')
+    const opt = document.createElement('option')
+    opt.value = v; opt.textContent = m + '月'
+    if (v === curMonth) opt.selected = true
+    monthSel.appendChild(opt)
+  }
 }
 
 function renderMonthly() {
@@ -270,6 +299,8 @@ document.getElementById('btnMonthly').addEventListener('click', function() {
   document.getElementById('dailyView').style.display = 'none'
   loadMonthly()
 })
+document.getElementById('yearPicker').addEventListener('change', loadMonthly)
+document.getElementById('monthPicker').addEventListener('change', loadMonthly)
 
 function openModal(mac) {
   document.getElementById('mgmtModal').style.display = 'flex'
@@ -330,6 +361,7 @@ async function tick() {
   loadDaily()
 }
 tick()
+initMonthPicker()
 setInterval(tick, 10000)
 </script>
 </body>

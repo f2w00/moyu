@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"net/netip"
 	"os"
 	"time"
@@ -71,6 +72,61 @@ func cleanupOldData(db *sql.DB) {
 	}
 }
 
+func generateMonthlyReport(db *sql.DB, t time.Time) string {
+	year, month, _ := t.Date()
+	start := time.Date(year, month, 1, 0, 0, 0, 0, t.Location())
+	end := start.AddDate(0, 1, -1)
+	startStr := start.Format("2006-01-02")
+	endStr := end.Format("2006-01-02")
+
+	var deviceCount, dayCount int
+	db.QueryRow(`SELECT COUNT(DISTINCT mac), COUNT(DISTINCT date) FROM daily WHERE date BETWEEN ? AND ?`,
+		startStr, endStr).Scan(&deviceCount, &dayCount)
+
+	s := fmt.Sprintf("# 月度报告 - %d年%d月\n\n统计周期: %s ~ %s\n\n## 汇总\n- 本月在线设备: %d 台\n- 覆盖天数: %d 天\n\n## 详细排行\n\n| 排名 | 姓名 | 在线天数 | 总时长 |\n|------|------|---------|--------|\n",
+		year, month, startStr, endStr, deviceCount, dayCount)
+
+	rows, err := db.Query(`
+		SELECT a.name,
+		       COUNT(DISTINCT d.date) as days,
+		       CAST(SUM(d.cnt) * 5 AS REAL) / 60.0 as hours
+		FROM daily d
+		INNER JOIN aliases a ON d.mac = a.mac
+		WHERE d.date BETWEEN ? AND ?
+		GROUP BY d.mac
+		ORDER BY hours DESC
+	`, startStr, endStr)
+	if err != nil {
+		return s
+	}
+	defer rows.Close()
+
+	rank := 1
+	for rows.Next() {
+		var name string
+		var days int
+		var hours float64
+		if err := rows.Scan(&name, &days, &hours); err != nil {
+			continue
+		}
+		total := math.Round(hours * 60)
+		hh := int(total) / 60
+		mm := int(total) % 60
+		dur := fmt.Sprintf("%dh", hh)
+		if mm > 0 {
+			dur += fmt.Sprintf("%dm", mm)
+		}
+		s += fmt.Sprintf("| %d | %s | %d | %s |\n", rank, name, days, dur)
+		rank++
+	}
+
+	if rank == 1 {
+		s += "（无已注册设备的记录）\n"
+	}
+
+	return s
+}
+
 func runDaemon(client *arp.Client, localIP netip.Addr, targets []netip.Addr, db *sql.DB, state *ScannerState) {
 	fmt.Println("ARP 守护模式启动")
 	fmt.Println("扫描间隔: 5 分钟")
@@ -78,10 +134,17 @@ func runDaemon(client *arp.Client, localIP netip.Addr, targets []netip.Addr, db 
 	fmt.Println()
 
 	var lastCleanup time.Time
+	var lastReportMonth time.Month
 
 	for {
 		now := time.Now()
 		inWindow := now.Hour() >= 6 && now.Hour() < 24
+
+		if now.Day() == 1 && lastReportMonth != now.Month() {
+			report := generateMonthlyReport(db, now.AddDate(0, -1, 0))
+			fmt.Println(report)
+			lastReportMonth = now.Month()
+		}
 
 		if time.Since(lastCleanup) > 24*time.Hour {
 			cleanupOldData(db)

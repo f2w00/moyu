@@ -1,14 +1,14 @@
 .PHONY: build run once clean lint help
 
-BINARY=arpscan
+BINARY=moyu
 
 build:
 	go build -o $(BINARY) .
 
-run: build
+run:
 	sudo ./$(BINARY)
 
-once: build
+once:
 	sudo ./$(BINARY) -once
 
 clean:

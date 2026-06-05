@@ -156,7 +156,7 @@ func handleMonthly(db *sql.DB) http.HandlerFunc {
 		}
 
 		start := t.Format("2006-01-02")
-		end := now.Format("2006-01-02")
+		end := t.AddDate(0, 1, -1).Format("2006-01-02")
 		days := now.Sub(t).Hours()/24 + 1
 
 		rows, err := db.Query(`

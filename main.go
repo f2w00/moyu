@@ -18,9 +18,9 @@ import (
 
 const (
 	maxRetries     = 3
-	initialTimeout = 500 * time.Millisecond
+	initialTimeout = 1 * time.Second
 	backoff        = 1.5
-	globalTimeout  = 3 * time.Second
+	globalTimeout  = 10 * time.Second
 	packetInterval = 4 * time.Millisecond
 )
 
@@ -76,7 +76,7 @@ func main() {
 		return
 	}
 
-	db, err := initDB("arpscan.db")
+	db, err := initDB("moyu.db")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "数据库初始化失败: %v\n", err)
 		os.Exit(1)
