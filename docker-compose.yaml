@@ -1,0 +1,9 @@
+services:
+    moyu:
+        image: 10.15.22.234:5005/moyu:latest
+        container_name: moyu
+        network_mode: host
+        privileged: true
+        volumes:
+            - ./data:/data
+        restart: unless-stopped
