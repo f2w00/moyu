@@ -5,20 +5,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
+
+	_ "embed"
 )
 
+//go:embed index.html
 var indexHTML string
-
-func init() {
-	data, err := os.ReadFile("index.html")
-	if err != nil {
-		log.Fatalf("读取 index.html 失败: %v", err)
-	}
-	indexHTML = string(data)
-}
 
 type ScannerState struct {
 	mu     sync.RWMutex
